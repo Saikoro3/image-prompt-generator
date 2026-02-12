@@ -1,0 +1,24 @@
+{
+  "name": "image-prompt-generator",
+  "description": "Generate optimized image prompts by researching references from Danbooru/Gelbooru, downloading visual samples via gallery-dl, analyzing them, and creating detailed prompts for Midjourney, Stable Diffusion, DALL-E, Flux, and more.",
+  "version": "1.0.0",
+  "author": "Ryo",
+  "license": "MIT",
+  "repository": "https://github.com/jekn2740/image-prompt-generator",
+  "homepage": "https://github.com/jekn2740/image-prompt-generator",
+  "keywords": [
+    "image-generation",
+    "prompt-engineering",
+    "midjourney",
+    "stable-diffusion",
+    "dall-e",
+    "flux",
+    "novelai",
+    "danbooru",
+    "gelbooru",
+    "gallery-dl",
+    "reference-images",
+    "anime",
+    "art"
+  ]
+}
