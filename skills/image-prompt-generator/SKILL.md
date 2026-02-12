@@ -96,14 +96,53 @@ Create multiple search queries covering different aspects:
 - Effect-focused: `magic_circle+glowing`, `portal+dark`
 - Composition-focused: `solo+front_view`, `dramatic_lighting`
 
-**Execute downloads** — Replace `{TAGS}` with your search tags. Use `+` to combine tags (e.g., `pink_hair+katana`):
+#### Step 4a: Load API Credentials
 
-> **Setup**: Before first use, copy `.env.example` to `.env` and fill in your API credentials. See [README.md](../README.md) for details.
+Before downloading, load API credentials using the following priority order. **Stop at the first method that succeeds.**
+
+| Priority | Source | How |
+|----------|--------|-----|
+| 1 | `.env` in this skill directory | `export $(grep -v '^#' <SKILL_DIR>/.env \| xargs)` |
+| 2 | `.env` in user's workspace / project root | `export $(grep -v '^#' .env \| xargs)` |
+| 3 | Environment variables already set | Check `echo $GELBOORU_API_KEY` etc. |
+| 4 | **Ask the user (fallback)** | Use `AskUserQuestion` — see below |
+
+**Fallback — AskUserQuestion:**
+
+If none of the above provides credentials, use `AskUserQuestion` to ask:
+
+```
+Question: "API credentials for reference image download are not configured yet.
+           How would you like to provide them?"
+Options:
+  1. "Enter API keys now" — Ask for each key individually in follow-up questions
+  2. "Skip (anonymous access)" — Proceed without authentication (lower rate limits)
+  3. "I'll set up .env myself" — Pause and let the user create the file
+```
+
+If the user chooses "Enter API keys now", ask for each key:
+- Gelbooru API Key & User ID (recommended)
+- Danbooru Username & API Key (optional)
+
+Then `export` them directly in the session:
+```bash
+export GELBOORU_API_KEY="<user_input>"
+export GELBOORU_USER_ID="<user_input>"
+export DANBOORU_USERNAME="<user_input>"
+export DANBOORU_API_KEY="<user_input>"
+```
+
+> **Tip for users**: To avoid being asked every time, copy `.env.example` to `.env` in this skill's directory and fill in your keys:
+> ```bash
+> cp .env.example .env   # inside the skill directory
+> ```
+> Get API keys at: [Danbooru](https://danbooru.donmai.us/profile) | [Gelbooru](https://gelbooru.com/index.php?page=account&s=options)
+
+#### Step 4b: Execute Downloads
+
+Replace `{TAGS}` with your search tags. Use `+` to combine tags (e.g., `pink_hair+katana`):
 
 ```bash
-# Load environment variables (Linux/macOS)
-export $(grep -v '^#' .env | xargs)
-
 # Danbooru (simple URL format - RECOMMENDED)
 # If DANBOORU_API_KEY is set, authenticated requests allow higher rate limits
 python -m gallery_dl "https://danbooru.donmai.us/posts?tags={TAGS}" --range 1-15
@@ -119,13 +158,6 @@ python -m gallery_dl "https://gelbooru.com/index.php?page=post&s=list&tags={TAGS
 ```
 
 **Windows users**: Always use `python -m gallery_dl` instead of `gallery-dl` directly.
-For loading `.env` on Windows (PowerShell):
-```powershell
-Get-Content .env | Where-Object { $_ -notmatch '^#' -and $_ -match '=' } | ForEach-Object {
-    $k, $v = $_ -split '=', 2
-    [System.Environment]::SetEnvironmentVariable($k.Trim(), $v.Trim(), 'Process')
-}
-```
 
 **Download location**: Images save to subdirectories under current working directory (e.g., `./danbooru/`, `./gelbooru/`). Use `-D reference/img/` to specify output directory if needed.
 
@@ -213,7 +245,7 @@ Generate `reference/prompt/prompt.md` with **two sections only**:
 | Command not found (Windows) | Always use `python -m gallery_dl` instead of `gallery-dl` directly |
 | Danbooru no results | Use simple URL format without authentication options: `python -m gallery_dl "https://danbooru.donmai.us/posts?tags={TAGS}"` |
 | Gelbooru 403 | Check `.env` for correct `GELBOORU_API_KEY` and `GELBOORU_USER_ID`. Try anonymous fallback URL if credentials are unavailable |
-| `.env` not loaded | Run `export $(grep -v '^#' .env | xargs)` (Linux/macOS) or the PowerShell snippet (Windows) |
+| `.env` not found | Follow Step 4a priority order: check skill directory → workspace → env vars → AskUserQuestion fallback |
 | No results for search | Try alternative tags, broader searches, or remove specific tags |
 | HTML/error pages downloaded | Verify with `file` command, delete small files (`find reference/img/ -size -10k -delete`) |
 | Downloads to wrong location | Check current directory. Use `-D path/to/output/` to specify output directory |
@@ -221,6 +253,7 @@ Generate `reference/prompt/prompt.md` with **two sections only**:
 ## Quality Checklist
 
 - [ ] Requirements clarified via AskUserQuestion (all major visual elements confirmed)
+- [ ] API credentials loaded (Step 4a: .env / env vars / AskUserQuestion fallback)
 - [ ] Concept decomposed into searchable keywords
 - [ ] gallery-dl downloads from Danbooru + Gelbooru (20-50 images)
 - [ ] Downloads verified (correct type, >50KB, no HTML/MP4)

@@ -26,11 +26,14 @@ cd image-prompt-generator
 chmod +x setup.sh && ./setup.sh
 ```
 
-### API Configuration
+### API Configuration (Optional)
 
-Copy the example environment file and add your credentials:
+The skill works **without any configuration** — on first run, Claude will ask if you want to enter API keys or skip (anonymous access).
+
+To avoid being asked every time, create a `.env` file in the skill directory:
 
 ```bash
+cd skills/image-prompt-generator
 cp .env.example .env
 ```
 
@@ -53,7 +56,7 @@ GELBOORU_USER_ID=your_user_id
 | Danbooru | https://danbooru.donmai.us/profile → API Key section |
 | Gelbooru | https://gelbooru.com/index.php?page=account&s=options |
 
-> **Note:** The skill works without API keys (anonymous access), but authenticated requests provide higher rate limits and more reliable access.
+> **Note:** The skill searches for `.env` in this order: skill directory → workspace root → environment variables. If none are found, Claude asks you interactively.
 
 ## Output Structure
 
@@ -95,10 +98,10 @@ image-prompt-generator/
 ├── skills/
 │   └── image-prompt-generator/
 │       ├── SKILL.md         # Main skill instructions
+│       ├── .env.example     # API key template
 │       └── references/
 │           ├── platform-guide.md        # Platform-specific attachment guide
 │           └── style-replacements.md    # Proper noun → description mapping
-├── .env.example             # API key template
 ├── .gitignore
 ├── setup.sh                 # One-click setup script
 ├── LICENSE

@@ -1,5 +1,6 @@
 # Environment variables (contains API keys — NEVER commit)
 .env
+skills/image-prompt-generator/.env
 
 # Downloaded reference images (large binary files)
 reference/

@@ -37,18 +37,17 @@ else
 fi
 
 # --- 3. Create .env from template ---
-if [ -f "$SCRIPT_DIR/.env" ]; then
-    echo "[OK] .env already exists — skipping"
+SKILL_DIR="$SCRIPT_DIR/skills/image-prompt-generator"
+
+# Create .env in skill directory
+if [ -f "$SKILL_DIR/.env" ]; then
+    echo "[OK] skills/image-prompt-generator/.env already exists — skipping"
 else
-    if [ -f "$SCRIPT_DIR/.env.example" ]; then
-        cp "$SCRIPT_DIR/.env.example" "$SCRIPT_DIR/.env"
-        echo "[OK] .env created from .env.example"
-        echo ""
-        echo "  >>> IMPORTANT: Edit .env and add your API keys! <<<"
-        echo "      Danbooru: https://danbooru.donmai.us/profile"
-        echo "      Gelbooru: https://gelbooru.com/index.php?page=account&s=options"
+    if [ -f "$SKILL_DIR/.env.example" ]; then
+        cp "$SKILL_DIR/.env.example" "$SKILL_DIR/.env"
+        echo "[OK] .env created in skills/image-prompt-generator/"
     else
-        echo "[WARN] .env.example not found — skipping .env creation"
+        echo "[WARN] .env.example not found in skill directory — skipping .env creation"
     fi
 fi
 
@@ -58,6 +57,13 @@ echo "  Setup complete!"
 echo "========================================"
 echo ""
 echo "Next steps:"
-echo "  1. Edit .env with your API credentials"
+echo "  1. (Optional) Edit .env with your API credentials"
+echo "     Location: skills/image-prompt-generator/.env"
+echo "     Danbooru: https://danbooru.donmai.us/profile"
+echo "     Gelbooru: https://gelbooru.com/index.php?page=account&s=options"
+echo ""
+echo "  NOTE: .env setup is optional!"
+echo "  Claude will ask for API keys interactively if .env is not found."
+echo ""
 echo "  2. Use this skill in Claude Code or Cowork mode"
 echo ""
