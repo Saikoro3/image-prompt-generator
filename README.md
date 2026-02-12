@@ -2,7 +2,8 @@
 
 A Claude Code / Cowork skill that generates optimized image prompts through reference research, visual analysis, and structured prompt creation.
 
-Works with **Midjourney**, **Stable Diffusion**, **DALL-E**, **Flux**, **NovelAI**, and other image generation tools.
+Works with **GPT-Image1.5** the best!!!.   
+Also works with **Midjourney**, **Stable Diffusion**, **DALL-E**, **Flux**, **NovelAI**, and other image generation tools.
 
 ## What It Does
 
