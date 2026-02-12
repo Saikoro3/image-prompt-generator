@@ -20,15 +20,6 @@ Works with **Midjourney**, **Stable Diffusion**, **DALL-E**, **Flux**, **NovelAI
 
 ### Installation
 
-**As a Claude Code plugin:**
-
-```bash
-git clone https://github.com/jekn2740/image-prompt-generator.git
-claude --plugin-dir ./image-prompt-generator
-```
-
-**Manual setup:**
-
 ```bash
 git clone https://github.com/jekn2740/image-prompt-generator.git
 cd image-prompt-generator
@@ -101,8 +92,6 @@ Each generation creates a project folder:
 
 ```
 image-prompt-generator/
-├── .claude-plugin/
-│   └── plugin.json          # Plugin manifest
 ├── skills/
 │   └── image-prompt-generator/
 │       ├── SKILL.md         # Main skill instructions
