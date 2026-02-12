@@ -22,7 +22,7 @@ Also works with **Midjourney**, **Stable Diffusion**, **DALL-E**, **Flux**, **No
 ### Installation
 
 ```bash
-git clone https://github.com/jekn2740/image-prompt-generator.git
+git clone https://github.com/Saikoro3/image-prompt-generator.git
 cd image-prompt-generator
 chmod +x setup.sh && ./setup.sh
 ```
