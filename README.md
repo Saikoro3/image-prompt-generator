@@ -24,7 +24,18 @@ Also works with **Midjourney**, **Stable Diffusion**, **DALL-E**, **Flux**, **No
 ```bash
 git clone https://github.com/Saikoro3/image-prompt-generator.git
 cd image-prompt-generator
+```
+
+#### Linux / macOS
+
+```bash
 chmod +x setup.sh && ./setup.sh
+```
+
+#### Windows (PowerShell)
+
+```powershell
+powershell -ExecutionPolicy Bypass -File setup.ps1
 ```
 
 ### API Configuration (Optional)
@@ -33,9 +44,18 @@ The skill works **without any configuration** — on first run, Claude will ask 
 
 To avoid being asked every time, create a `.env` file in the skill directory:
 
+#### Linux / macOS
+
 ```bash
 cd skills/image-prompt-generator
 cp .env.example .env
+```
+
+#### Windows (PowerShell)
+
+```powershell
+cd skills\image-prompt-generator
+Copy-Item .env.example .env
 ```
 
 Then edit `.env`:
@@ -104,7 +124,8 @@ image-prompt-generator/
 │           ├── platform-guide.md        # Platform-specific attachment guide
 │           └── style-replacements.md    # Proper noun → description mapping
 ├── .gitignore
-├── setup.sh                 # One-click setup script
+├── setup.sh                 # Setup script (Linux / macOS)
+├── setup.ps1                # Setup script (Windows PowerShell)
 ├── LICENSE
 └── README.md
 ```
