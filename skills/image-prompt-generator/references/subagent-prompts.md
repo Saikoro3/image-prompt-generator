@@ -75,9 +75,11 @@ Inputs:
 Tasks:
 1. Create reference/img/danbooru/.
 2. Use gallery-dl with Danbooru queries derived from the concepts and aesthetic research.
-3. Save downloads under reference/img/danbooru/.
-4. Verify file type and size; reject HTML/error pages, tiny corrupted files, videos, and unsupported formats.
-5. For each valid image, evaluate:
+3. Before downloading, add rating filters to every query so explicit/questionable results are excluded at the search stage. Prefer safe/general rating filters when available, and include negative terms such as `-rating:explicit -rating:questionable`.
+4. Do not knowingly download explicit/questionable results as candidates.
+5. Save downloads under reference/img/danbooru/.
+6. Verify file type and size; reject HTML/error pages, tiny corrupted files, videos, unsupported formats, and any result whose metadata/tags show `rating:explicit` or `rating:questionable`.
+7. For each valid image, evaluate:
    - What the image depicts.
    - Distinctive features.
    - Where the image has visual taste or strong visual judgment.
@@ -124,9 +126,11 @@ Inputs:
 Tasks:
 1. Create reference/img/gelbooru/.
 2. Use gallery-dl with Gelbooru queries derived from the concepts and aesthetic research.
-3. Save downloads under reference/img/gelbooru/.
-4. Verify file type and size; reject HTML/error pages, tiny corrupted files, videos, and unsupported formats.
-5. For each valid image, evaluate:
+3. Before downloading, add rating filters to every query so explicit/questionable results are excluded at the search stage. Prefer safe/general rating filters when available, and include negative terms such as `-rating:explicit -rating:questionable`.
+4. Do not knowingly download explicit/questionable results as candidates.
+5. Save downloads under reference/img/gelbooru/.
+6. Verify file type and size; reject HTML/error pages, tiny corrupted files, videos, unsupported formats, and any result whose metadata/tags show `rating:explicit` or `rating:questionable`.
+7. For each valid image, evaluate:
    - What the image depicts.
    - Distinctive features.
    - Where the image has visual taste or strong visual judgment.

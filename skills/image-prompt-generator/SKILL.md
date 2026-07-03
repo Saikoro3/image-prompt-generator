@@ -110,6 +110,8 @@ Launch one low-reasoning `worker` or `explorer` sub-agent with the `danbooru-dow
 
 This sub-agent must use Danbooru only. It downloads candidate references, verifies files, and reviews each downloaded image against `concept_01` to `concept_03`.
 
+Before downloading, every Danbooru query must exclude `explicit` and `questionable` ratings at the search stage. Prefer rating-safe/general filters when available, and include negative rating terms such as `-rating:explicit -rating:questionable` in generated queries. Do not knowingly download explicit/questionable results as candidates.
+
 For each valid image, it must record:
 - What the image depicts.
 - Distinctive features and visually tasteful elements.
@@ -125,6 +127,8 @@ Save outputs under `reference/img/danbooru/`.
 Launch one low-reasoning `worker` or `explorer` sub-agent with the `gelbooru-download-fit-review` prompt from [subagent-prompts.md](references/subagent-prompts.md).
 
 This sub-agent must use Gelbooru only. It follows the same fit-review requirements as the Danbooru sub-agent and saves outputs under `reference/img/gelbooru/`.
+
+Before downloading, every Gelbooru query must exclude `explicit` and `questionable` ratings at the search stage. Prefer rating-safe/general filters when available, and include negative rating terms such as `-rating:explicit -rating:questionable` in generated queries. Do not knowingly download explicit/questionable results as candidates.
 
 ### Step 5: Main Agent Enriches Final Prompts and Selects References
 
@@ -254,14 +258,15 @@ Reference images: none
 2. Do not use a prompt-draft sub-agent; Main writes final prompts.
 3. Danbooru and Gelbooru must be separate sub-agents.
 4. Danbooru/Gelbooru sub-agents review each image for fit against `concept_01` to `concept_03`.
-5. Reference images are optional and selective; use only images that fit the user request and the assigned prompt.
-6. If reference images are selected, generation sub-agents must attach them during image generation.
-7. If no reference image fits, generate with text only and record that no references were used.
-8. Generate images with the `imagegen` skill after final prompts are written.
-9. Run image generation in parallel, one sub-agent per prompt.
-10. Run image review in parallel, one sub-agent per prompt result.
-11. Save every generated image locally under `reference/generated/<prompt_id>/`, accepted or rejected.
-12. No proper nouns in final prompt output. See [style-replacements.md](references/style-replacements.md).
+5. Danbooru/Gelbooru download queries must exclude `explicit` and `questionable` ratings before download.
+6. Reference images are optional and selective; use only images that fit the user request and the assigned prompt.
+7. If reference images are selected, generation sub-agents must attach them during image generation.
+8. If no reference image fits, generate with text only and record that no references were used.
+9. Generate images with the `imagegen` skill after final prompts are written.
+10. Run image generation in parallel, one sub-agent per prompt.
+11. Run image review in parallel, one sub-agent per prompt result.
+12. Save every generated image locally under `reference/generated/<prompt_id>/`, accepted or rejected.
+13. No proper nouns in final prompt output. See [style-replacements.md](references/style-replacements.md).
 
 ## Quality Checklist
 
@@ -270,6 +275,7 @@ Reference images: none
 - [ ] Sub-agent 1 completed aesthetic expression research for all concepts.
 - [ ] Sub-agent 2 completed Danbooru download and concept-fit self-review.
 - [ ] Sub-agent 3 completed Gelbooru download and concept-fit self-review.
+- [ ] Danbooru/Gelbooru queries excluded `explicit` and `questionable` ratings before download.
 - [ ] Main wrote final `prompt_01` to `prompt_03`.
 - [ ] Main selected only suitable reference images, or marked none.
 - [ ] Sub-agents 4-6 generated images in parallel with references attached when present.
