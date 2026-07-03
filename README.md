@@ -1,23 +1,45 @@
 # Image Prompt Generator
 
-A Claude Code / Cowork skill that generates optimized image prompts through reference research, visual analysis, and structured prompt creation.
+A Codex skill for creating image prompts and generated image candidates through staged sub-agents, booru reference research, selective reference-image use, and Codex image generation.
 
-Works with **GPT-Image1.5** the best!!!.   
-Also works with **Midjourney**, **Stable Diffusion**, **DALL-E**, **Flux**, **NovelAI**, and other image generation tools.
+This skill is designed specifically for **Codex**. Image generation is assumed to run through Codex's `imagegen` skill and its built-in `image_gen` tool by default.
+
+It can still write prompts for **Midjourney**, **Stable Diffusion**, **DALL-E**, **Flux**, **NovelAI**, and other tools, but the default workflow is Codex-native: draft prompts, generate candidate images, review them, and save every result locally.
 
 ## What It Does
 
-1. **Clarifies your vision** — Asks targeted questions to nail down every visual detail
-2. **Collects reference images** — Downloads from Danbooru & Gelbooru via gallery-dl
-3. **Analyzes references** — Rates, tags, and compares each image
-4. **Generates a structured prompt** — Natural language + style keywords, organized by scene, character, effects, and mood
+1. **Clarifies your vision** - The main agent asks targeted questions and locks success criteria.
+2. **Creates three rough concepts** - The main agent drafts `concept_01` to `concept_03`.
+3. **Delegates research to sub-agents** - Low-reasoning sub-agents research aesthetics and collect references.
+4. **Collects safe references** - Danbooru and Gelbooru are handled by separate sub-agents, with `explicit` and `questionable` ratings excluded before download.
+5. **Selects references carefully** - Only images that fit the user's request and a specific prompt are used as reference images.
+6. **Writes final prompts** - The main agent enriches the three concepts into `prompt_01` to `prompt_03`.
+7. **Generates images in parallel** - Three image-generation sub-agents use Codex `imagegen`; selected references are attached when present.
+8. **Reviews images in parallel** - Three review sub-agents evaluate generated images before the main agent presents results.
+
+## Workflow
+
+```text
+User request
+-> Main agent clarifies requirements
+-> Main agent creates concept_01, concept_02, concept_03
+-> Sub-agent 1 researches aesthetic expression for all concepts
+-> Sub-agent 2 downloads Danbooru references and reviews concept fit
+-> Sub-agent 3 downloads Gelbooru references and reviews concept fit
+-> Main agent writes final prompt_01, prompt_02, prompt_03
+-> Main agent selects only suitable reference images per prompt
+-> Sub-agents 4-6 generate images in parallel with Codex imagegen
+-> Sub-agents 7-9 review generated images in parallel
+-> Main agent presents accepted and rejected outputs
+```
 
 ## Quick Start
 
 ### Prerequisites
 
+- Codex
 - Python 3.8+
-- [Claude Code](https://claude.com/claude-code) or Cowork mode
+- `gallery-dl` for Danbooru/Gelbooru reference collection
 
 ### Installation
 
@@ -38,11 +60,13 @@ chmod +x setup.sh && ./setup.sh
 powershell -ExecutionPolicy Bypass -File setup.ps1
 ```
 
-### API Configuration (Optional)
+Restart Codex after installing or updating the global skill.
 
-The skill works **without any configuration** — on first run, Claude will ask if you want to enter API keys or skip (anonymous access).
+## API Configuration (Optional)
 
-To avoid being asked every time, create a `.env` file in the skill directory:
+The skill can run without booru API keys by using anonymous access, but API keys are recommended for reliability and higher rate limits.
+
+To avoid being asked during a run, create a `.env` file in the skill directory:
 
 #### Linux / macOS
 
@@ -61,7 +85,7 @@ Copy-Item .env.example .env
 Then edit `.env`:
 
 ```env
-# Danbooru (optional — enables higher rate limits)
+# Danbooru (optional - enables higher rate limits)
 DANBOORU_USERNAME=your_username
 DANBOORU_API_KEY=your_api_key
 
@@ -74,68 +98,102 @@ GELBOORU_USER_ID=your_user_id
 
 | Platform | URL |
 |----------|-----|
-| Danbooru | https://danbooru.donmai.us/profile → API Key section |
+| Danbooru | https://danbooru.donmai.us/profile -> API Key section |
 | Gelbooru | https://gelbooru.com/index.php?page=account&s=options |
 
-> **Note:** The skill searches for `.env` in this order: skill directory → workspace root → environment variables. If none are found, Claude asks you interactively.
+The skill checks credentials from the skill directory `.env`, the workspace root `.env`, then existing environment variables. If none are available, the main agent asks how to proceed.
+
+## Reference Safety
+
+Danbooru and Gelbooru download sub-agents must exclude `explicit` and `questionable` ratings before download. Queries should prefer safe/general rating filters and include negative rating terms such as:
+
+```text
+-rating:explicit -rating:questionable
+```
+
+If metadata or tags still show `rating:explicit` or `rating:questionable`, the file is rejected and must not be treated as a valid reference candidate.
 
 ## Output Structure
 
-Each generation creates a project folder:
+Each run creates a project folder:
 
-```
+```text
 [project_name]/
 ├── reference/
-│   ├── img/           # Downloaded reference images + analysis.md
-│   └── prompt/        # Final prompt + selected reference images
-│       ├── prompt.md  # The generated prompt
-│       ├── primary_ref.jpg
-│       └── style_ref.png
+│   ├── img/
+│   │   ├── danbooru/
+│   │   │   ├── manifest.md
+│   │   │   └── fit-review.md
+│   │   └── gelbooru/
+│   │       ├── manifest.md
+│   │       └── fit-review.md
+│   ├── prompt/
+│   │   ├── prompt_01/
+│   │   │   └── prompt.md
+│   │   ├── prompt_02/
+│   │   │   └── prompt.md
+│   │   ├── prompt_03/
+│   │   │   └── prompt.md
+│   │   └── prompt-index.md
+│   └── generated/
+│       ├── prompt_01/
+│       │   ├── generation-notes.md
+│       │   └── review.md
+│       ├── prompt_02/
+│       │   ├── generation-notes.md
+│       │   └── review.md
+│       ├── prompt_03/
+│       │   ├── generation-notes.md
+│       │   └── review.md
+│       └── review-summary.md
 ```
+
+Generated images are saved under `reference/generated/<prompt_id>/` whether accepted or rejected.
 
 ## Features
 
-- **Multi-platform support** — Generates prompts optimized for different AI image generators
-- **Reference image tagging** — PRIMARY_REF, STYLE_REF, EFFECT_REF, COLOR_REF, COMPOSITION_REF, DETAIL_REF
-- **Platform-specific weights** — Includes recommended settings (e.g., Midjourney `--iw`, SD IP-Adapter weights)
-- **No proper nouns** — Automatically replaces studio/artist names with descriptive style terms
-- **Structured prompts** — Markdown format with scene overview, character, environment, effects, and technical details
+- **Codex-native image generation** - Uses Codex `imagegen` and built-in `image_gen` by default.
+- **Staged sub-agent workflow** - Separate low-reasoning sub-agents for aesthetic research, Danbooru, Gelbooru, image generation, and image review.
+- **Parallel generation and review** - `prompt_01` to `prompt_03` are generated and reviewed by separate sub-agents.
+- **Selective reference images** - References are optional; only suitable images are attached during generation.
+- **Rating exclusion** - `explicit` and `questionable` booru results are excluded before download.
+- **No proper nouns** - Final prompts replace studio, artist, and IP names with descriptive style terms.
+- **Saved evidence** - Prompts, selected references, generated images, notes, and reviews are written to disk.
 
-## Supported Platforms
+## Supported Prompt Targets
 
-| Platform | Reference Images | Notes |
-|----------|-----------------|-------|
-| Midjourney | `--cref`, `--sref`, `--iw` | Full support |
-| Stable Diffusion | IP-Adapter, ControlNet | Full support |
-| ComfyUI | IPAdapter node | Multi-reference blending |
-| Flux | Style reference | Single image recommended |
-| DALL-E 3 | Text-only | Describes references in prompt |
-| NovelAI | Text-only | Optimized tag format |
+| Target | Notes |
+|--------|-------|
+| Codex `imagegen` | Default image generation path |
+| Midjourney | Prompt and reference guidance can be written |
+| Stable Diffusion / ComfyUI | Prompt and IP-Adapter / ControlNet reference guidance can be written |
+| Flux | Prompt and limited reference guidance can be written |
+| DALL-E | Text-first prompts; references are described when direct attachment is unavailable |
+| NovelAI | Prompt/tag style can be adapted |
 
 ## File Overview
 
-```
+```text
 image-prompt-generator/
 ├── skills/
 │   └── image-prompt-generator/
-│       ├── SKILL.md         # Main skill instructions
-│       ├── .env.example     # API key template
+│       ├── SKILL.md
+│       ├── .env.example
 │       └── references/
-│           ├── platform-guide.md        # Platform-specific attachment guide
-│           └── style-replacements.md    # Proper noun → description mapping
+│           ├── platform-guide.md
+│           ├── style-replacements.md
+│           └── subagent-prompts.md
 ├── .gitignore
-├── setup.sh                 # Setup script (Linux / macOS)
-├── setup.ps1                # Setup script (Windows PowerShell)
+├── setup.sh
+├── setup.ps1
 ├── LICENSE
 └── README.md
 ```
 
 ## License
 
-MIT License — see [LICENSE](LICENSE) for details.
+MIT License - see [LICENSE](LICENSE) for details.
 
 ## Contributing
 
-Contributions are welcome! Feel free to open issues or submit pull requests.
-
-If you add support for a new platform, please update `references/platform-guide.md` with the attachment method and recommended weights.
+Contributions are welcome. If you change the workflow, keep `SKILL.md`, `references/subagent-prompts.md`, and this README aligned.
