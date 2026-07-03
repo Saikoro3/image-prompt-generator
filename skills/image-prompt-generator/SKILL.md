@@ -1,266 +1,278 @@
 ---
 name: image-prompt-generator
-description: "Generate optimized image prompts by researching references, collecting visual samples, downloading reference images via gallery-dl, and analyzing them to create detailed prompts in English Markdown format. Use when: (1) creating image generation prompts for Midjourney/Stable Diffusion/DALL-E/Flux, (2) collecting reference images from Danbooru/Gelbooru, (3) building visual mood boards with analysis, (4) user asks to generate or create an image prompt, or (5) user provides an image concept and wants a structured prompt."
+description: "Codex-specialized image prompt and image generation workflow. Generate optimized image prompts by clarifying requirements, creating three rough concepts, delegating aesthetic expression research and separate Danbooru/Gelbooru reference collection to low-reasoning sub-agents, enriching final prompts as the main agent, generating images in parallel with the imagegen skill, reviewing generated images in parallel, and saving every generated result locally. Use when: (1) creating image generation prompts for Midjourney/Stable Diffusion/DALL-E/Flux/NovelAI, (2) collecting reference images from Danbooru/Gelbooru, (3) building visual mood boards with analysis, (4) user asks to generate or create an image prompt, (5) user provides an image concept and wants a structured prompt, or (6) user wants Codex to generate candidate images from prompt variants."
 ---
 
 # Image Prompt Generator Skill
 
-Create high-quality image generation prompts through reference research, visual analysis, and downloadable reference images.
+Create high-quality image prompts and generated image candidates through Codex orchestration, staged low-reasoning sub-agents, booru reference research, selective reference-image use, and the `imagegen` skill.
+
+## Core Rule: Main Agent Owns Concepts and Final Prompts
+
+The main agent is responsible for:
+- Clarifying the user's requirements and success criteria.
+- Creating rough concept directions before sub-agent research.
+- Reviewing all sub-agent outputs.
+- Enriching the rough concepts into final `prompt_01`, `prompt_02`, and `prompt_03`.
+- Selecting only suitable reference images for each prompt.
+- Writing final prompt files and generation instructions.
+- Integrating generated-image reviews and presenting results to the user.
+
+The main agent must not merge all work into one sub-agent. Use separate low-reasoning sub-agents for each stage:
+- Sub-agent 1: aesthetic and prompt-expression research for the rough concepts.
+- Sub-agent 2: Danbooru-only image download and concept-fit self-review.
+- Sub-agent 3: Gelbooru-only image download and concept-fit self-review.
+- Sub-agents 4-6: parallel image generation, one prompt per worker.
+- Sub-agents 7-9: parallel generated-image review, one prompt result per explorer.
+
+Do not use a prompt-drafting sub-agent. The main agent creates the rough concepts and writes the enriched final prompts.
 
 ## Workflow Overview
 
 ```mermaid
 flowchart TD
-    A[User Request] --> A1[Clarify with AskUserQuestion]
-    A1 --> B[Create Project Folder]
-    B --> C[Decompose Concept & Extract Tags]
-    C --> D{Text-only prompt?}
-    D -->|Yes| E[Create reference/txt/]
-    D -->|No| F[Download via gallery-dl]
-    E --> F
-    F --> G[Analyze References]
-    G --> H[Tag & Select Ref Images]
-    H --> I[Copy to reference/prompt/]
-    I --> J[Create prompt.md]
-    J --> K[Deliverables Summary]
+    A[User Request] --> B[Main: clarify requirements]
+    B --> C[Main: create concept_01 to concept_03]
+    C --> D[Sub-agent 1: aesthetic expression for concepts]
+    C --> E[Sub-agent 2: Danbooru download and fit review]
+    C --> F[Sub-agent 3: Gelbooru download and fit review]
+    D --> G[Main: enrich prompt_01 to prompt_03]
+    E --> G
+    F --> G
+    G --> H[Main: select suitable reference images per prompt]
+    H --> I[Sub-agents 4-6: parallel imagegen generation]
+    I --> J[Sub-agents 7-9: parallel generated image reviews]
+    J --> K[Main: integrate reviews and present results]
 ```
+
+## Required Project Structure
+
+Create a descriptive lowercase project folder in the user's workspace:
+
+```text
+[workspace]/[project_name]/
+├── reference/
+│   ├── img/
+│   │   ├── danbooru/          # Danbooru downloads and self-review
+│   │   └── gelbooru/          # Gelbooru downloads and self-review
+│   ├── prompt/
+│   │   ├── prompt_01/
+│   │   ├── prompt_02/
+│   │   ├── prompt_03/
+│   │   └── prompt-index.md
+│   └── generated/
+│       ├── prompt_01/
+│       ├── prompt_02/
+│       ├── prompt_03/
+│       └── review-summary.md
+```
+
+Default to 3 concepts, 3 final prompts, 3 generated images, and 3 generated-image reviews. If the user requests a different count, scale the concept, generation, and review stages to match.
 
 ## Step-by-Step Instructions
 
-### Step 0: Clarify Requirements with AskUserQuestion
+### Step 0: Main Agent Clarifies Requirements
 
-**MANDATORY first step.** Before any other work, use the `AskUserQuestion` tool to ask the user detailed questions and fully clarify the image concept. There is **no limit** on the number of question rounds — continue asking until every important detail is nailed down.
+Ask the user detailed questions until the visual target and success criteria are clear:
+- Output use or target generator: Codex image preview, Midjourney, Stable Diffusion, DALL-E, Flux, NovelAI, or other.
+- Subject, environment, mood, lighting, aspect ratio, medium, style direction, must-have elements, and avoid items.
+- Whether generated images should be produced after prompts are written. Default is yes.
+- Any cost, count, or reference-image constraints.
 
-Ask in batches of 2–4 questions per round, covering (but not limited to):
+If API credentials are needed for Danbooru/Gelbooru and no `.env` or environment variables are available, the main agent may ask the user how to proceed. Do not ask sub-agents to request secrets from the user.
 
-| Round | Example topics |
-|-------|---------------|
-| 1 | Target generation tool (SD / Midjourney / DALL-E / Flux / NovelAI), art style, time of day / lighting |
-| 2 | Camera angle / composition, aspect ratio, key subject details (outfit, expression, pose) |
-| 3 | Environment details, props / objects, color tone preferences |
-| 4+ | Any remaining ambiguities discovered while reviewing earlier answers |
+### Step 1: Main Agent Creates Three Rough Concepts
 
-**Guidelines:**
-- If the user provides a reference image, read it first and incorporate what you see into your questions (e.g., "The character in your reference has pink hair and a crown — should we keep / modify these?")
-- Phrase each question with concrete options (use the `options` field) so the user can pick quickly, but always allow free-text via the implicit "Other" option
-- Do **not** proceed to Step 1 until you are confident every major visual element is specified
-- Summarize all confirmed details back to the user before moving on
+Before launching research sub-agents, create three rough directions:
+- `concept_01`
+- `concept_02`
+- `concept_03`
 
-### Step 1: Create Project Folder
+Each concept should differ meaningfully in worldbuilding, composition, mood, or visual strategy while still satisfying the user's request. Keep these rough and short; they are inputs for sub-agent research, not final prompts.
 
-```
-[workspace]/[project_name]/
-├── reference/
-│   ├── txt/      # (Optional) Only if text-only prompt workflow
-│   ├── img/      # Downloaded reference images + analysis.md
-│   └── prompt/   # Final prompt + selected reference images
-```
+Write the concepts into `reference/prompt/prompt-index.md` or pass them directly to sub-agents if files have not been created yet.
 
-**Naming**: Descriptive lowercase with underscores (e.g., `ice_mage_scene`, `cyberpunk_city`).
+### Step 2: Launch Sub-Agent 1 for Aesthetic Expression Research
 
-### Step 2: Decompose Image Concept & Extract Keywords
+Launch one low-reasoning `explorer` sub-agent with the `aesthetic-expression-for-concepts` prompt from [subagent-prompts.md](references/subagent-prompts.md).
 
-Analyze the user's request into key visual elements:
+The sub-agent must evaluate all three concepts and return:
+- Aesthetic expression for each concept.
+- Prompt language and visual vocabulary.
+- Composition choices and the impression each creates.
+- Color, light, atmosphere, material, and texture guidance.
+- Booru tag/search-query suggestions for each concept.
+- Proper-noun-free replacements for final prompt language.
 
-| Category | Examples |
-|----------|----------|
-| Art Style | Painterly anime, hyper-detailed 2D, cinematic anime film |
-| Subject | Character type, clothing, pose, expression |
-| Environment | Ocean, forest, city, sky |
-| Effects | Magic circles, particles, lighting, glow |
-| Mood | Epic, calm, dark, vibrant |
+### Step 3: Launch Sub-Agent 2 for Danbooru Download and Fit Review
 
-**Convert natural language to booru tags**:
+Launch one low-reasoning `worker` or `explorer` sub-agent with the `danbooru-download-fit-review` prompt from [subagent-prompts.md](references/subagent-prompts.md).
 
-| Natural Language | Booru Tags |
-|------------------|------------|
-| "Elf girl casting magic" | `elf`, `pointy_ears`, `casting_spell`, `magic_circle` |
-| "Dark portal to void" | `portal`, `dark_background`, `door`, `void` |
-| "Holding book" | `book`, `grimoire`, `holding_book` |
-| "Silver-white hair" | `white_hair`, `silver_hair`, `long_hair` |
+This sub-agent must use Danbooru only. It downloads candidate references, verifies files, and reviews each downloaded image against `concept_01` to `concept_03`.
 
-**No Proper Nouns in final prompt output** — use descriptive style terms instead. See [style-replacements.md](references/style-replacements.md) for replacement table. Proper nouns MAY be used during research/search phase only.
+For each valid image, it must record:
+- What the image depicts.
+- Distinctive features and visually tasteful elements.
+- Composition and the impression it creates.
+- Color, light, texture, and mood.
+- Which concept(s) it fits, if any.
+- Whether it should be considered as a reference image candidate.
 
-### Step 3: (Optional) Text-Only Workflow
+Save outputs under `reference/img/danbooru/`.
 
-**Only if user provides a text-only prompt** (no image concept). Create `.md` files in `reference/txt/` per category with visual characteristics, keywords, and color palettes (hex codes).
+### Step 4: Launch Sub-Agent 3 for Gelbooru Download and Fit Review
 
-Skip if user provides an image concept.
+Launch one low-reasoning `worker` or `explorer` sub-agent with the `gelbooru-download-fit-review` prompt from [subagent-prompts.md](references/subagent-prompts.md).
 
-### Step 4: Download Reference Images via gallery-dl
+This sub-agent must use Gelbooru only. It follows the same fit-review requirements as the Danbooru sub-agent and saves outputs under `reference/img/gelbooru/`.
 
-**PRIMARY METHOD**: Download from Danbooru and Gelbooru.
+### Step 5: Main Agent Enriches Final Prompts and Selects References
 
-Create multiple search queries covering different aspects:
-- Character-focused: `elf+casting_spell`, `white_hair+magic_circle`
-- Effect-focused: `magic_circle+glowing`, `portal+dark`
-- Composition-focused: `solo+front_view`, `dramatic_lighting`
+The main agent integrates Sub-agent 1-3 outputs and writes final prompt directories:
+- `reference/prompt/prompt_01/prompt.md`
+- `reference/prompt/prompt_02/prompt.md`
+- `reference/prompt/prompt_03/prompt.md`
 
-#### Step 4a: Load API Credentials
+For each prompt:
+- Preserve the user's requirements.
+- Use the strongest relevant aesthetic and prompt-expression findings.
+- Use no proper nouns in final prompt text.
+- Decide whether reference images should be used.
+- Select only images that fit both the user's request and that prompt's visual direction.
+- Do not use all downloaded images by default.
+- If no downloaded image is suitable for a prompt, explicitly mark `Reference images: none`.
 
-Before downloading, load API credentials using the following priority order. **Stop at the first method that succeeds.**
+When selecting reference images:
+- Copy only selected images into `reference/prompt/<prompt_id>/`.
+- Record each selected image path and role in that prompt's `prompt.md`.
+- Use roles such as `PRIMARY_REF`, `STYLE_REF`, `COMPOSITION_REF`, `COLOR_REF`, `EFFECT_REF`, or `DETAIL_REF`.
+- State exactly how image-generation sub-agents should attach/use the selected references.
 
-| Priority | Source | How |
-|----------|--------|-----|
-| 1 | `.env` in this skill directory | `export $(grep -v '^#' <SKILL_DIR>/.env \| xargs)` |
-| 2 | `.env` in user's workspace / project root | `export $(grep -v '^#' .env \| xargs)` |
-| 3 | Environment variables already set | Check `echo $GELBOORU_API_KEY` etc. |
-| 4 | **Ask the user (fallback)** | Use `AskUserQuestion` — see below |
+### Step 6: Launch Sub-Agents 4-6 for Parallel Image Generation
 
-**Fallback — AskUserQuestion:**
+Launch three low-reasoning `worker` sub-agents in parallel:
+- Sub-agent 4 handles `prompt_01`.
+- Sub-agent 5 handles `prompt_02`.
+- Sub-agent 6 handles `prompt_03`.
 
-If none of the above provides credentials, use `AskUserQuestion` to ask:
+Use the matching prompt template from [subagent-prompts.md](references/subagent-prompts.md):
+- `parallel-image-generation-prompt-01`
+- `parallel-image-generation-prompt-02`
+- `parallel-image-generation-prompt-03`
 
-```
-Question: "API credentials for reference image download are not configured yet.
-           How would you like to provide them?"
-Options:
-  1. "Enter API keys now" — Ask for each key individually in follow-up questions
-  2. "Skip (anonymous access)" — Proceed without authentication (lower rate limits)
-  3. "I'll set up .env myself" — Pause and let the user create the file
-```
+Each worker must:
+- Read and use the `imagegen` skill.
+- Use the built-in `image_gen` tool mode unless the user explicitly requested another supported path.
+- Generate only its assigned prompt.
+- If reference images are listed for the prompt, inspect/load them as needed and attach them as reference images during generation.
+- If no reference image is listed, record `Reference images: none` and generate from text only.
+- Save every generated image, exact prompt, reference-image list, and generation notes under `reference/generated/<prompt_id>/`.
 
-If the user chooses "Enter API keys now", ask for each key:
-- Gelbooru API Key & User ID (recommended)
-- Danbooru Username & API Key (optional)
+### Step 7: Launch Sub-Agents 7-9 for Parallel Image Reviews
 
-Then `export` them directly in the session:
-```bash
-export GELBOORU_API_KEY="<user_input>"
-export GELBOORU_USER_ID="<user_input>"
-export DANBOORU_USERNAME="<user_input>"
-export DANBOORU_API_KEY="<user_input>"
-```
+Launch three low-reasoning `explorer` sub-agents in parallel:
+- Sub-agent 7 reviews `prompt_01` outputs.
+- Sub-agent 8 reviews `prompt_02` outputs.
+- Sub-agent 9 reviews `prompt_03` outputs.
 
-> **Tip for users**: To avoid being asked every time, copy `.env.example` to `.env` in this skill's directory and fill in your keys:
-> ```bash
-> cp .env.example .env   # inside the skill directory
-> ```
-> Get API keys at: [Danbooru](https://danbooru.donmai.us/profile) | [Gelbooru](https://gelbooru.com/index.php?page=account&s=options)
+Use the matching prompt template from [subagent-prompts.md](references/subagent-prompts.md):
+- `generated-image-review-prompt-01`
+- `generated-image-review-prompt-02`
+- `generated-image-review-prompt-03`
 
-#### Step 4b: Execute Downloads
+Each reviewer must evaluate:
+- Fit to the user's request.
+- Fit to the assigned final prompt.
+- Fit to selected reference images, if any.
+- Composition and the impression it creates.
+- Atmosphere, color, light, texture, technical quality, and artifacts.
+- Recommendation: `ACCEPT`, `REJECT`, or `RETRY_ONCE`.
 
-Replace `{TAGS}` with your search tags. Use `+` to combine tags (e.g., `pink_hair+katana`):
+### Step 8: Main Agent Presents Results
 
-```bash
-# Danbooru (simple URL format - RECOMMENDED)
-# If DANBOORU_API_KEY is set, authenticated requests allow higher rate limits
-python -m gallery_dl "https://danbooru.donmai.us/posts?tags={TAGS}" --range 1-15
+The main agent integrates Sub-agent 7-9 reviews.
 
-# Danbooru (authenticated — optional, for higher rate limits)
-python -m gallery_dl "https://danbooru.donmai.us/posts?tags={TAGS}&login=${DANBOORU_USERNAME}&api_key=${DANBOORU_API_KEY}" --range 1-15
+If at least one image is acceptable:
+- Present accepted generated image(s), rejected generated image(s), saved paths, review summaries, and the final prompts.
 
-# Gelbooru (authenticated — recommended for reliable access)
-python -m gallery_dl "https://gelbooru.com/index.php?page=post&s=list&tags={TAGS}&api_key=${GELBOORU_API_KEY}&user_id=${GELBOORU_USER_ID}" --range 1-15
+If no image is acceptable:
+- Use the review findings to revise the prompts once.
+- Re-run the same three parallel generation workers and three parallel review explorers once.
+- Present all generated images and review outcomes even if the retry still fails.
 
-# Gelbooru (anonymous fallback — lower rate limits)
-python -m gallery_dl "https://gelbooru.com/index.php?page=post&s=list&tags={TAGS}" --range 1-15
-```
+Never hide rejected outputs. Every generated image must be saved locally and reported.
 
-**Windows users**: Always use `python -m gallery_dl` instead of `gallery-dl` directly.
+## Final Prompt Format
 
-**Download location**: Images save to subdirectories under current working directory (e.g., `./danbooru/`, `./gelbooru/`). Use `-D reference/img/` to specify output directory if needed.
-
-**Target**: 20-50 images total. Verify with `ls -lh reference/img/` and delete corrupted files (MP4, HTML error pages).
-
-### Step 5: (Optional) Browse via Chrome
-
-**ONLY if explicitly requested by user.** Otherwise skip and rely on gallery-dl.
-
-### Step 6: Analyze References
-
-Create `reference/img/analysis.md`:
-
-1. **Per-image analysis** — source, resolution, relevance (★-★★★★★), visual elements, color palette (hex), composition, key takeaways
-2. **Summary comparison table** — compare composition, color, effects, mood across top references
-3. **Critical additions beyond references** — elements user requested but NOT in any reference
-4. **Reference Image Selection** — see Step 7
-
-### Step 7: Select & Tag Reference Images
-
-Tag each reference image for generation use. See [platform-guide.md](references/platform-guide.md) for full tagging system, platform-specific attachment methods, and selection criteria.
-
-Core tags: `PRIMARY_REF` (always attach), `STYLE_REF`, `EFFECT_REF`, `COLOR_REF`, `COMPOSITION_REF`, `DETAIL_REF`, `DO_NOT_ATTACH`.
-
-### Step 8: Copy Selected References to prompt/
-
-Copy tagged `PRIMARY_REF`, `STYLE_REF`, and `EFFECT_REF` images to `reference/prompt/`:
-
-```bash
-cp reference/img/ref01_xxx.jpg reference/prompt/
-cp reference/img/ref02_xxx.jpg reference/prompt/
-```
-
-Optionally rename for clarity (e.g., `primary_ref.jpg`, `style_ref.png`).
-
-### Step 9: Create Optimized Prompt
-
-Generate `reference/prompt/prompt.md` with **two sections only**:
-
-**1. Main Prompt** — Natural language, detailed, with extensive Markdown headings:
+Each `reference/prompt/<prompt_id>/prompt.md` must contain:
 
 ```markdown
+# Main Prompt
+
 ## Scene Overview
 [Brief summary]
 
-## Character
-- **Appearance**: [details]
-- **Pose**: [details]
-- **Expression**: [details]
+## Subject
+[Subject details]
 
 ## Environment
-[details]
+[Environment details]
 
-## Effects
-### Magical Elements
-[details]
-### Lighting
-[details]
+## Composition
+[Framing, camera angle, focal path, and intended impression]
 
-## Atmosphere & Mood
-[details]
+## Lighting, Color, and Materials
+[Lighting, palette hex codes, texture and material details]
+
+## Atmosphere and Mood
+[Mood details]
 
 ## Technical Details
 - Aspect ratio: [value]
-- Color palette: [hex codes]
 - Key visual elements: [list]
+
+# Style Keywords
+
+[Categorized style, atmosphere, lighting, color, and technical keywords]
+
+# Reference Images
+
+- [role]: [path] - [why this image fits this prompt and how to use it]
 ```
 
-**2. Style Keywords** — Categorized: art style, atmosphere, lighting, color palette (hex), technical specs.
+If no reference image fits, write:
 
-**No other sections.** Keep prompt.md focused and clean. **No proper nouns.**
+```markdown
+# Reference Images
+
+Reference images: none
+```
 
 ## Critical Rules
 
-1. **No proper nouns in prompts** — See [style-replacements.md](references/style-replacements.md)
-2. **Always download references via gallery-dl** — 20-50 images, copy selections to `reference/prompt/`
-3. **Always tag references** — Every image gets `PRIMARY_REF`, `EFFECT_REF`, `DO_NOT_ATTACH`, etc.
-4. **Verify downloads** — A 4KB "JPEG" is likely an HTML error page
-
-## Troubleshooting
-
-| Problem | Solution |
-|---------|----------|
-| gallery-dl not found | `pip install gallery-dl` |
-| Command not found (Windows) | Always use `python -m gallery_dl` instead of `gallery-dl` directly |
-| Danbooru no results | Use simple URL format without authentication options: `python -m gallery_dl "https://danbooru.donmai.us/posts?tags={TAGS}"` |
-| Gelbooru 403 | Check `.env` for correct `GELBOORU_API_KEY` and `GELBOORU_USER_ID`. Try anonymous fallback URL if credentials are unavailable |
-| `.env` not found | Follow Step 4a priority order: check skill directory → workspace → env vars → AskUserQuestion fallback |
-| No results for search | Try alternative tags, broader searches, or remove specific tags |
-| HTML/error pages downloaded | Verify with `file` command, delete small files (`find reference/img/ -size -10k -delete`) |
-| Downloads to wrong location | Check current directory. Use `-D path/to/output/` to specify output directory |
+1. Main creates the rough three concepts before research sub-agents run.
+2. Do not use a prompt-draft sub-agent; Main writes final prompts.
+3. Danbooru and Gelbooru must be separate sub-agents.
+4. Danbooru/Gelbooru sub-agents review each image for fit against `concept_01` to `concept_03`.
+5. Reference images are optional and selective; use only images that fit the user request and the assigned prompt.
+6. If reference images are selected, generation sub-agents must attach them during image generation.
+7. If no reference image fits, generate with text only and record that no references were used.
+8. Generate images with the `imagegen` skill after final prompts are written.
+9. Run image generation in parallel, one sub-agent per prompt.
+10. Run image review in parallel, one sub-agent per prompt result.
+11. Save every generated image locally under `reference/generated/<prompt_id>/`, accepted or rejected.
+12. No proper nouns in final prompt output. See [style-replacements.md](references/style-replacements.md).
 
 ## Quality Checklist
 
-- [ ] Requirements clarified via AskUserQuestion (all major visual elements confirmed)
-- [ ] API credentials loaded (Step 4a: .env / env vars / AskUserQuestion fallback)
-- [ ] Concept decomposed into searchable keywords
-- [ ] gallery-dl downloads from Danbooru + Gelbooru (20-50 images)
-- [ ] Downloads verified (correct type, >50KB, no HTML/MP4)
-- [ ] analysis.md with per-image analysis + summary table
-- [ ] References tagged (`PRIMARY_REF`, `EFFECT_REF`, etc.)
-- [ ] Selected references copied to `reference/prompt/`
-- [ ] Main prompt with clear MD structure (headings, bullets, tables)
-- [ ] **No proper nouns** in prompt output
-- [ ] Style keywords with hex codes
-- [ ] Final deliverables summary presented
+- [ ] Main clarified requirements and success criteria.
+- [ ] Main created `concept_01` to `concept_03`.
+- [ ] Sub-agent 1 completed aesthetic expression research for all concepts.
+- [ ] Sub-agent 2 completed Danbooru download and concept-fit self-review.
+- [ ] Sub-agent 3 completed Gelbooru download and concept-fit self-review.
+- [ ] Main wrote final `prompt_01` to `prompt_03`.
+- [ ] Main selected only suitable reference images, or marked none.
+- [ ] Sub-agents 4-6 generated images in parallel with references attached when present.
+- [ ] Sub-agents 7-9 reviewed generated images in parallel.
+- [ ] Every generated image was saved and reported.
+- [ ] Local and global skill directories were kept in sync after skill edits.
